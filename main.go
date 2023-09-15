@@ -82,12 +82,19 @@ func readSounds(inbuf *bytes.Reader) {
 		snd := SoundLocationMap[z]
 		if snd == nil {
 			fmt.Println("Invalid SND")
-			break
+			continue
 		}
 
-		fmt.Printf("id %v, offset %v, size %v\n", snd.id, snd.offset, snd.size)
+		fmt.Printf("id %v, offset %v, size %v, end %v\n", snd.id, snd.offset, snd.size, snd.offset+snd.size)
 
+		var raw []byte = make([]byte, snd.size)
 		inbuf.Seek(int64(snd.offset), io.SeekStart)
+		for z := 0; z < int(snd.size); z++ {
+			cTmp, _ := inbuf.ReadByte()
+			raw[z] = cTmp
+		}
 
+		fname := fmt.Sprintf("out/%v.raw", snd.id)
+		os.WriteFile(fname, raw, 0677)
 	}
 }
