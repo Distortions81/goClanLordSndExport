@@ -81,7 +81,6 @@ func readSounds(inbuf *bytes.Reader) {
 	for z = 1; z < numItems; z++ {
 		snd := SoundLocationMap[z]
 		if snd == nil {
-			fmt.Println("Invalid SND")
 			continue
 		}
 
