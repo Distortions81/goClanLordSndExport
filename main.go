@@ -84,14 +84,28 @@ func readSounds(inbuf *bytes.Reader) {
 			continue
 		}
 
-		fmt.Printf("id %v, offset %v, size %v, end %v\n", snd.id, snd.offset, snd.size, snd.offset+snd.size)
+		const header = 32
+		const freqPos = 29
+		var freq byte
+		var outPos = 0
 
 		var raw []byte = make([]byte, snd.size)
 		inbuf.Seek(int64(snd.offset), io.SeekStart)
 		for z := 0; z < int(snd.size); z++ {
 			cTmp, _ := inbuf.ReadByte()
-			raw[z] = cTmp
+			if z == header {
+				//fmt.Println("")
+			} else if z == freqPos {
+				freq = cTmp
+			} else if z < header {
+				//fmt.Printf("%0.2x ", cTmp)
+			} else {
+				raw[outPos] = cTmp
+				outPos++
+			}
 		}
+		fmt.Printf("Freq: %x, ", freq)
+		fmt.Printf("id %v, offset %v, size %v, end %v\n", snd.id, snd.offset, snd.size, snd.offset+snd.size)
 
 		fname := fmt.Sprintf("out/%v.raw", snd.id)
 		os.WriteFile(fname, raw, 0677)
