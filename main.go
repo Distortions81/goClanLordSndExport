@@ -84,10 +84,7 @@ func readSounds(inbuf *bytes.Reader) {
 			continue
 		}
 
-		const header = 30
-		const start = 26
-		const freqPos = 29
-		var freq byte
+		const header = 55
 		var outPos = 0
 		var buf string
 
@@ -95,24 +92,17 @@ func readSounds(inbuf *bytes.Reader) {
 		inbuf.Seek(int64(snd.offset), io.SeekStart)
 		for z := 0; z < int(snd.size); z++ {
 			cTmp, _ := inbuf.ReadByte()
-			if z == freqPos {
-				buf = buf + fmt.Sprintf("f-%0.2x ", cTmp)
-				freq = cTmp
-			} else if z < header && z > start {
+			if z < header {
 				buf = buf + fmt.Sprintf("%0.2x ", cTmp)
-			} else {
+			}
+
+			if z > header {
 				raw[outPos] = cTmp
 				outPos++
 			}
 		}
-		if freq == 0x44 {
-			continue
-		}
 
-		if buf != "" {
-			fmt.Println(buf)
-		}
-		fmt.Printf("Freq: %x, ", freq)
+		fmt.Println(buf)
 		fmt.Printf("id %v, offset %v, size %v, end %v\n", snd.id, snd.offset, snd.size, snd.offset+snd.size)
 
 		fname := fmt.Sprintf("out/%v.raw", snd.id)
