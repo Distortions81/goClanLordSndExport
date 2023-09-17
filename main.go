@@ -86,25 +86,29 @@ func readSounds(inbuf *bytes.Reader) {
 
 		const header = 55
 		var outPos = 0
-		var buf string
+		var intList []uint16
 
 		var raw []byte = make([]byte, snd.size)
 		inbuf.Seek(int64(snd.offset), io.SeekStart)
 		for z := 0; z < int(snd.size); z++ {
-			cTmp, _ := inbuf.ReadByte()
+
 			if z < header {
-				buf = buf + fmt.Sprintf("%0.2x ", cTmp)
+				var tmp uint16
+				binary.Read(inbuf, binary.BigEndian, &tmp)
+				intList = append(intList, tmp)
 			}
 
 			if z > header {
+				cTmp, _ := inbuf.ReadByte()
 				raw[outPos] = cTmp
 				outPos++
 			}
 		}
 
-		fmt.Println(buf)
-		fmt.Printf("id %v, offset %v, size %v, end %v\n", snd.id, snd.offset, snd.size, snd.offset+snd.size)
-
+		for _, val := range intList {
+			fmt.Printf("%5v, ", val)
+		}
+		fmt.Println("")
 		fname := fmt.Sprintf("out/%v.raw", snd.id)
 		os.WriteFile(fname, raw, 0677)
 	}
