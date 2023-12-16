@@ -12,6 +12,18 @@ import (
 	"golang.org/x/text/message"
 )
 
+type SndListRes struct {
+	Format      int16
+	NumMods     int16
+	ModNumber   uint16
+	ModInit     int32
+	NumCommands int16
+	Cmd         uint16
+	Param1      int16
+	Param2      int32
+	Datapart    uint8
+}
+
 const preAlloc = 10000
 
 var SoundLocationMap map[uint32]*dataLocation
@@ -84,30 +96,27 @@ func readSounds(inbuf *bytes.Reader) {
 			continue
 		}
 
-		const header = 55
 		var outPos = 0
-		var intList []uint16
 
 		var raw []byte = make([]byte, snd.size)
 		inbuf.Seek(int64(snd.offset), io.SeekStart)
+
+		var tmp SndListRes
+		binary.Read(inbuf, binary.BigEndian, &tmp)
+
 		for z := 0; z < int(snd.size); z++ {
-
-			if z < header {
-				var tmp uint16
-				binary.Read(inbuf, binary.BigEndian, &tmp)
-				intList = append(intList, tmp)
+			cTmp, err := inbuf.ReadByte()
+			if err != nil {
+				break
 			}
+			raw[outPos] = cTmp
+			outPos++
 
-			if z > header {
-				cTmp, _ := inbuf.ReadByte()
-				raw[outPos] = cTmp
-				outPos++
-			}
 		}
 
-		for _, val := range intList {
-			fmt.Printf("%5v, ", val)
-		}
+		fmt.Printf("%5v, ", tmp)
+
+		fmt.Println("")
 		fmt.Println("")
 		fname := fmt.Sprintf("out/%v.raw", snd.id)
 		os.WriteFile(fname, raw, 0677)
