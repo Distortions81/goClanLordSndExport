@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/csv"
+	"flag"
 	"fmt"
 	"io"
 	"log"
 	"os"
+	"runtime"
 
+	"github.com/remeh/sizedwaitgroup"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 )
@@ -30,6 +33,9 @@ const preAlloc = 10000
 var SoundLocationMap map[uint32]*dataLocation
 
 func main() {
+	rateFlag := flag.Int("sampleRate", 44100, "output sample rate in Hz")
+	flag.Parse()
+	sampleRate = *rateFlag
 
 	//Read Clan Lord Image file
 	fmt.Println("Reading CL_Sounds file")
@@ -99,6 +105,8 @@ func readSounds(inbuf *bytes.Reader) {
 
 	numItems := uint32(len(SoundLocationMap) - 1)
 
+	swg := sizedwaitgroup.New(runtime.NumCPU())
+
 	var z uint32
 
 	for z = 1; z < numItems; z++ {
@@ -107,9 +115,7 @@ func readSounds(inbuf *bytes.Reader) {
 			continue
 		}
 
-		var outPos = 0
-
-		var raw []byte = make([]byte, snd.size)
+		raw := make([]byte, snd.size)
 		inbuf.Seek(int64(snd.offset), io.SeekStart)
 
 		var tmp SndListRes
@@ -130,21 +136,26 @@ func readSounds(inbuf *bytes.Reader) {
 			fmt.Sprint(tmp.Datapart),
 		})
 
-		for i := 0; i < int(snd.size); i++ {
-			cTmp, err := inbuf.ReadByte()
-			if err != nil {
-				break
-			}
-			raw[outPos] = cTmp
-			outPos++
-
+		if _, err := io.ReadFull(inbuf, raw); err != nil {
+			log.Printf("failed to read sound %d: %v\n", snd.id, err)
+			continue
 		}
 
-		fmt.Printf("%5v, ", tmp)
+		data, srcRate, bits := parseSoundHeader(raw)
+		id := snd.id
+		format := tmp.Format
 
-		fmt.Println("")
-		fmt.Println("")
-		fname := fmt.Sprintf("out/%v.raw", snd.id)
-		os.WriteFile(fname, raw, 0677)
+		swg.Add()
+		go func(data []byte, id uint32, format int16, srcRate, bits int) {
+			defer swg.Done()
+			samples := decodeSound(data, format, srcRate, bits)
+			fname := fmt.Sprintf("out/%v.wav", id)
+			if err := writeWAV(fname, samples); err != nil {
+				log.Printf("failed to write %s: %v\n", fname, err)
+			}
+		}(data, id, format, srcRate, bits)
+
 	}
+
+	swg.Wait()
 }
